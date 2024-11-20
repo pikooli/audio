@@ -36,6 +36,9 @@ export default function RootLayout({
             <nav>
               <Link href="/mic-audio">Mic Audio</Link>
             </nav>
+            <nav>
+              <Link href="/mic-stored">Mic Stored</Link>
+            </nav>
           </div>
         </header>
         {children}
