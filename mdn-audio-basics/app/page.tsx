@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 
 export default function Home() {
   const ref = useRef<HTMLAudioElement>(null);
@@ -10,18 +10,23 @@ export default function Home() {
   const [panner, setPanner] = useState<StereoPannerNode | null>(null);
   const [pan, setPan] = useState(0);
   const [volume, setVolume] = useState(1);
+
   console.log("pan", pan);
   console.log("volume", volume);
+
   const initAudioCtx = useCallback(() => {
     console.log("initAudioCtx");
+
     if (!ref.current) return;
     console.log("ref.current", ref.current);
+
     if (!audioCtx && !track) {
       console.log("creating audio context");
       const ctx = new AudioContext();
       const trackAudio = ctx.createMediaElementSource(ref.current);
       const gainNode = new GainNode(ctx);
       const panner = new StereoPannerNode(ctx, { pan: 0 });
+
       setAudioCtx(ctx);
       setTrack(trackAudio);
       setGainNode(gainNode);
@@ -29,6 +34,7 @@ export default function Home() {
 
       trackAudio.connect(gainNode).connect(panner).connect(ctx.destination);
       ctx.resume();
+      
       console.log("audio context created");
     } else if (audioCtx) {
       console.log("playing audio");
