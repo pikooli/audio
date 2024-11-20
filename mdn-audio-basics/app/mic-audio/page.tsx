@@ -66,7 +66,10 @@ export default function MicAudio() {
   }, [recorder, recording, setupSoundRecorder]);
 
   return (
-    <div className="flex flex-col items-center mt-16 p-4 bg-gray-50 rounded-lg shadow-md">
+    <>
+      <h1 className="text-2xl font-bold mb-6 text-gray-800">
+        Mic Audio
+      </h1>
       <h1 className="text-2xl font-bold mb-6 text-gray-800">
         Audio Mic Chunking Browser Test
       </h1>
@@ -103,6 +106,6 @@ export default function MicAudio() {
           aria-label="Recorded Audio Playback"
         />
       </div>
-    </div>
+    </>
   );
 }

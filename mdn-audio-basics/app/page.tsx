@@ -57,7 +57,7 @@ export default function Home() {
 ;
 
   return (
-    <div className="flex flex-col items-center mt-16">
+    <>
       <h1 className="text-2xl font-bold">project to test audio context in browser</h1>
       <p>control pannel and gain for audio</p>
       <audio ref={ref} src="/outfoxing.mp3" />
@@ -94,6 +94,6 @@ export default function Home() {
         }}
       />
     </div>
-    </div>
+    </>
   );
 }

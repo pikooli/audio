@@ -39,9 +39,14 @@ export default function RootLayout({
             <nav>
               <Link href="/mic-stored">Mic Stored</Link>
             </nav>
+            <nav>
+              <Link href="/mic-ws">Mic WS</Link>
+            </nav>
           </div>
         </header>
+        <div className="container mx-auto">
         {children}
+        </div>
       </body>
     </html>
   );

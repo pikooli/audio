@@ -1,51 +1,58 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 
-const CHUNK_SIZE = 1024;
-const BACKEND_URL = "/api/stored";
+const CHUNK_SIZE = 5000;
 
-export default function MicStored() {
-  const [, setChunks] = useState<Blob[]>([]);
-  const [recording, setRecording] = useState(false);
+export default function MicWs() {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chunks, setChunks] = useState<Blob[]>([]);
 
-  const sendAudio = useCallback(async (chunks: Blob[]) => {
-    console.log("sendAudio", chunks);
-    const blob = new Blob(chunks, { type: "audio/webm; codecs=opus" });
-    const formData = new FormData();
-    formData.append('audio', blob);
-    await fetch(BACKEND_URL, {
-      method: 'POST',
-      body: formData
-    })
+
+  useEffect(() => {
+    if (wsRef.current) {
+      return;
+    }
+    wsRef.current = new WebSocket("ws://localhost:3002");
+    wsRef.current.onopen = () => {
+      console.log("ws open");
+    };
+    wsRef.current.onmessage = (event) => {
+      console.log("onmessage", event);
+    };
+    wsRef.current.onerror = (event) => {
+      console.error("ws error", event);
+    };
+    wsRef.current.onclose = () => {
+      console.log("ws close");
+    };
   }, []);
 
   const setupSoundRecorder = useCallback(() => {
-    if (!mediaRecorderRef.current) {  
+    if (!mediaRecorderRef.current) {
       return;
     }
-    mediaRecorderRef.current.ondataavailable = (event  ) => {
+    mediaRecorderRef.current.ondataavailable = (event) => {
       console.log("ondataavailable", event.data.size);
-      if (event.data.size > 0) {
+      if (wsRef.current && event.data.size > 0) {
+        wsRef.current.send(event.data);
         setChunks((prev) => [...prev, event.data]);
       }
     };
 
-    mediaRecorderRef.current.onstop = () => {
+    mediaRecorderRef.current.onstop = async () => {
       console.log("onStop")
-      setChunks(prev => {
-        sendAudio(prev);
-        return [];
-      });
     };
 
     mediaRecorderRef.current.onerror = (event) => {
       console.error("Media recorder error:", event);
       setError("Recording failed. Please check microphone permissions.");
     };
-  }, [sendAudio, mediaRecorderRef]);
+  }, [mediaRecorderRef, wsRef]);
 
   const initAudioCtx = useCallback(async () => {
     setError(null);
@@ -58,34 +65,34 @@ export default function MicStored() {
         mediaRecorderRef.current = soundRecorder;
         setupSoundRecorder();
         soundRecorder.start(CHUNK_SIZE);
-        setRecording(true);
+        setIsRecording(true);
       } else {
-        if (!recording) {
+        if (!isRecording) {
           mediaRecorderRef.current.start(CHUNK_SIZE);
-          setRecording(true);
+          setIsRecording(true);
         } else {
           mediaRecorderRef.current.stop();
-          setRecording(false);
+          setIsRecording(false);
         }
       }
     } catch (err) {
       console.error("Error initializing audio recording:", err);
       setError("Could not start recording. Please check microphone access.");
     }
-  }, [mediaRecorderRef, recording, setupSoundRecorder]);
+  }, [mediaRecorderRef, isRecording, setupSoundRecorder]);
 
   return (
     <>
       <h1 className="text-2xl font-bold mb-6 text-gray-800">
-        Mic Stored
+        Mic Ws
       </h1>
       <h1 className="text-2xl font-bold mb-6 text-gray-800">
-        Audio Chunking send to server in one goTest
+        Audio Chunking send to server by ws by chunk Test
       </h1>
       <p className="p-4">
         This demo records audio from your microphone and sends it to the server. Click the button below to start recording, 
         then speak into your microphone. Click again to stop recording and the audio will be sent to the server.
-        It send everything in one go.
+        It send everything by chunk.
       </p>
       
       {error && (
@@ -98,7 +105,7 @@ export default function MicStored() {
         <button 
           className={`
             px-4 py-2 rounded-md transition-colors duration-300
-            ${recording 
+            ${isRecording 
               ? 'bg-red-500 hover:bg-red-600' 
               : 'bg-blue-500 hover:bg-blue-600'
             } 
@@ -106,15 +113,13 @@ export default function MicStored() {
           `}
           onClick={initAudioCtx}
         >
-          {recording ? "Stop Recording" : "Start Recording"}
+          {isRecording ? "Stop Recording" : "Start Recording"}
         </button>
-        
-        <audio 
-          controls 
-          src="/audio.webm"
-          className="mt-4 w-full max-w-md"
-          aria-label="Recorded Audio Playback"
-        />
+        <div className="grid grid-cols-4 gap-2">
+        {chunks.map((chunk, index) => (
+          <p key={index}>Chunk {index} : {chunk.size}</p>
+        ))}
+        </div>
       </div>
     </>
   );
