@@ -3,12 +3,12 @@
 import { useRef, useState, useCallback } from "react";
 
 const CHUNK_SIZE = 1024;
+const BACKEND_URL = "/api/stored";
 
 export default function MicStored() {
-  const audioRef = useRef<HTMLAudioElement>(null);
   const [, setChunks] = useState<Blob[]>([]);
   const [recording, setRecording] = useState(false);
-  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sendAudio = useCallback(async (chunks: Blob[]) => {
@@ -16,21 +16,24 @@ export default function MicStored() {
     const blob = new Blob(chunks, { type: "audio/webm; codecs=opus" });
     const formData = new FormData();
     formData.append('audio', blob);
-    await fetch('/api/stored', {
+    await fetch(BACKEND_URL, {
       method: 'POST',
       body: formData
-    });
+    })
   }, []);
 
-  const setupSoundRecorder = useCallback((soundRecorder: MediaRecorder) => {
-    soundRecorder.ondataavailable = (event) => {
+  const setupSoundRecorder = useCallback(() => {
+    if (!mediaRecorderRef.current) {  
+      return;
+    }
+    mediaRecorderRef.current.ondataavailable = (event  ) => {
       console.log("ondataavailable", event.data.size);
       if (event.data.size > 0) {
         setChunks((prev) => [...prev, event.data]);
       }
     };
 
-    soundRecorder.onstop = async () => {
+    mediaRecorderRef.current.onstop = () => {
       console.log("onStop")
       setChunks(prev => {
         sendAudio(prev);
@@ -38,30 +41,30 @@ export default function MicStored() {
       });
     };
 
-    soundRecorder.onerror = (event) => {
+    mediaRecorderRef.current.onerror = (event) => {
       console.error("Media recorder error:", event);
       setError("Recording failed. Please check microphone permissions.");
     };
-  }, [sendAudio]);
+  }, [sendAudio, mediaRecorderRef]);
 
   const initAudioCtx = useCallback(async () => {
     setError(null);
 
     try {
-      if (!recorder) {
+      if (!mediaRecorderRef.current) {
         const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const soundRecorder = new MediaRecorder(mediaStream);
         
-        setRecorder(soundRecorder);
-        setupSoundRecorder(soundRecorder);
+        mediaRecorderRef.current = soundRecorder;
+        setupSoundRecorder();
         soundRecorder.start(CHUNK_SIZE);
         setRecording(true);
       } else {
         if (!recording) {
-          recorder.start(CHUNK_SIZE);
+          mediaRecorderRef.current.start(CHUNK_SIZE);
           setRecording(true);
         } else {
-          recorder.stop();
+          mediaRecorderRef.current.stop();
           setRecording(false);
         }
       }
@@ -69,7 +72,7 @@ export default function MicStored() {
       console.error("Error initializing audio recording:", err);
       setError("Could not start recording. Please check microphone access.");
     }
-  }, [recorder, recording, setupSoundRecorder]);
+  }, [mediaRecorderRef, recording, setupSoundRecorder]);
 
   return (
     <div className="flex flex-col items-center mt-16 p-4 bg-gray-50 rounded-lg shadow-md">
@@ -104,8 +107,8 @@ export default function MicStored() {
         </button>
         
         <audio 
-          ref={audioRef} 
           controls 
+          src="/audio.webm"
           className="mt-4 w-full max-w-md"
           aria-label="Recorded Audio Playback"
         />
